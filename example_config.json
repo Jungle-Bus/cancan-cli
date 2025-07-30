@@ -1,0 +1,52 @@
+{
+    "project_name": "example",
+    "name": "lieux et équipements culturels",
+    "description": "Exemple de fichier de configuration",
+    "source": {
+        "type": "csv",
+        "url": "https://www.data.gouv.fr/api/1/datasets/r/dced78ee-0823-4b61-86e6-57717308d4e4",
+        "csv_separator": ";",
+        "source_url": "https://www.data.gouv.fr/datasets/base-des-lieux-et-equipements-culturels-basilic"
+    },
+    "transformations": [
+        {
+            "subproject_name": "cinema",
+            "team": [
+                "nlehuby"
+            ],
+            "description": "Extraction des cinémas en Île-de-France.",
+            "steps": [
+                {
+                    "function": "filter_by_column_values",
+                    "args": {
+                        "column": "Région",
+                        "value_list": [
+                            "Île-de-France"
+                        ]
+                    }
+                },
+                {
+                    "function": "filter_by_column_values",
+                    "args": {
+                        "column": "Type équipement ou lieu",
+                        "value_list": [
+                            "Cinéma"
+                        ]
+                    }
+                },
+                {
+                    "function": "keep_columns",
+                    "args": {
+                        "columns": [
+                            "Type équipement ou lieu",
+                            "Nom",
+                            "Adresse postale",
+                            "libelle_geographique"
+                        ],
+                        "export_name": "cinema.basilic.csv"
+                    }
+                }
+            ]
+        }
+    ]
+}
