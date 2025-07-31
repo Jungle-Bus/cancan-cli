@@ -22,7 +22,7 @@ def download_and_read(url, project_name, filextension='csv', csv_separator=','):
 
     if not url.startswith("http"):
         logging.error(f"L'URL fournie n'est pas valide : {url}")
-        return []
+        return pd.DataFrame()
     logging.info(f"Téléchargement du dataset depuis {url}") 
 
     response = requests.get(url)
@@ -41,14 +41,14 @@ def download_and_read(url, project_name, filextension='csv', csv_separator=','):
             df = pd.read_json(dataset_filename)
         else :
             logging.error(f"Format de fichier non supporté pour {dataset_filename}")
-            return []
+            return pd.DataFrame()
         #sort the dataframe by all columns
         df.sort_values(by=list(df.columns), inplace=True)
         df.reset_index(drop=True, inplace=True)
         return df
     else:
         logging.error(f"Erreur lors du téléchargement de {url}: {response.status_code}")
-        return []
+        return pd.DataFrame()
 
 def delete_source_file(project_name, filextension='csv'):
     dataset_filename = os.path.join('data', f'all.{project_name}.{filextension}')
@@ -116,14 +116,35 @@ def filter_by_geometry(dataset, longitude_column, latitude_column, filter_geomet
     return filtered_gdf
 
 def diff_datasets(dataset1, dataset2):
-    if not isinstance(dataset1, pd.DataFrame) or not isinstance(dataset2, pd.DataFrame):
-        logging.error("Les deux datasets doivent être des DataFrames.")
-        return None
     diff = pd.concat([dataset1, dataset2]).drop_duplicates(keep=False)
-    if not diff.empty:
-        logging.info(f"Il y a des différences entre les deux datasets, {len(diff)} objets à analyser.")
-    else:
-        logging.info("Aucune différence entre les deux datasets.")
     return diff
 
+def get_archived_dataset_and_diff(dataset, archived_dataset_url):
+    diff_output = {
+        "has_diff": False
+    }
+    archived_dataset = download_and_read(archived_dataset_url, "archived_dataset")
+    if archived_dataset.empty:
+        logging.error("Le dataset archivé est vide ou n'a pas pu être téléchargé.")
+        return diff_output
+    diff = diff_datasets(dataset, archived_dataset)
+    os.remove("data/all.archived_dataset.csv")
+    if diff.empty:
+        logging.info("Aucune différence entre le dataset actuel et le dataset archivé.")
+        return diff_output
+    diff_output["has_diff"] = True
+    diff_output["content"] = "Il y a {} objets différents dans la nouvelle version du jeu de données open data.".format(len(diff))
+    logging.info(diff_output["content"])
+    if len(diff) > 10:
+        diff_output["content"] += "\n\nVoici les 10 premiers objets différents :\n"
+        diff_output["content"] += diff[["official_name"]].head(10).to_string(index=False)
+        diff_output["content"] += "\n\nPour voir toutes les différences, consultez l'historique des versions du jeu de données open data sur Github."
+        print(diff_output["content"])
+
+    else:
+        diff_output["content"] += "\n\nVoici les objets différents :\n"
+        diff_output["content"] += diff[["official_name"]].to_string(index=False)
+        diff_output["content"] += "\n\nPour voir toutes les différences, consultez l'historique des versions du jeu de données open data sur Github."
+
+    return diff_output
 

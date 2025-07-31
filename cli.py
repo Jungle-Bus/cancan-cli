@@ -1,14 +1,27 @@
 import logging
 import json
 import sys
+import os
 
-from src.csv_manip import download_and_read, keep_columns, inverted_filter_by_column_values, filter_by_column_values, filter_by_geometry, diff_datasets, delete_source_file
-
+from src.csv_manip import download_and_read, keep_columns, inverted_filter_by_column_values, filter_by_column_values, filter_by_geometry, get_archived_dataset_and_diff, delete_source_file
+from src.github_api import create_github_issue
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler()
     ])
+
+
+def create_issue_with_diff(diff_output, project_name, project_labels, project_assignees, repo_name, repo_user):
+    if not diff_output["has_diff"]:
+        logging.info("Pas de différence, pas de ticket")
+        return
+    github_token = os.getenv("GITHUB_TOKEN")
+    if not github_token:
+        logging.error("GITHUB_TOKEN n'est pas défini dans les variables d'environnement.")
+        return
+
+    create_github_issue(diff_output, project_name, project_labels, project_assignees, repo_name, repo_user, github_token)
 
 def run_pipeline_from_config(config_path):
     with open(config_path, 'r', encoding='utf-8') as f:
@@ -20,7 +33,6 @@ def run_pipeline_from_config(config_path):
         "filter_by_column_values": filter_by_column_values,
         "inverted_filter_by_column_values": inverted_filter_by_column_values,
         "filter_by_geometry": filter_by_geometry,
-        "diff_datasets": diff_datasets,
     }
 
     if "source" in config and "url" in config["source"]:
@@ -47,8 +59,15 @@ def run_pipeline_from_config(config_path):
                 else:
                     logging.error("Aucun dataset disponible pour la première étape.")
                     return
-
-            last_output = function_map[func_name](**args)
+            if func_name == "diff":
+                diff = get_archived_dataset_and_diff(**args)
+                repo_name = transformation.get("github_repo", "default_repo")
+                repo_user = transformation.get("github_user", "default_user")
+                project_labels = transformation.get("topics", [])
+                project_assignees = transformation.get("team", [])
+                create_issue_with_diff(diff, project_name, project_labels, project_assignees, repo_name, repo_user)
+            else :
+                last_output = function_map[func_name](**args)
     
     delete_source_file(project_name, filextension='csv')
 
