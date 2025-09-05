@@ -119,7 +119,7 @@ def diff_datasets(dataset1, dataset2):
     diff = pd.concat([dataset1, dataset2]).drop_duplicates(keep=False)
     return diff
 
-def get_archived_dataset_and_diff(dataset, archived_dataset_url):
+def get_archived_dataset_and_diff(dataset, archived_dataset_url, label_column='official_name'):
     diff_output = {
         "has_diff": False
     }
@@ -137,13 +137,13 @@ def get_archived_dataset_and_diff(dataset, archived_dataset_url):
     logging.info(diff_output["content"])
     if len(diff) > 10:
         diff_output["content"] += "\n\nVoici les 10 premiers objets différents :\n"
-        diff_output["content"] += diff[["official_name"]].head(10).to_string(index=False)
+        diff_output["content"] += diff[[label_column]].head(10).to_string(index=False)
         diff_output["content"] += "\n\nPour voir toutes les différences, consultez l'historique des versions du jeu de données open data sur Github."
         print(diff_output["content"])
 
     else:
         diff_output["content"] += "\n\nVoici les objets différents :\n"
-        diff_output["content"] += diff[["official_name"]].to_string(index=False)
+        diff_output["content"] += diff[[label_column]].to_string(index=False)
         diff_output["content"] += "\n\nPour voir toutes les différences, consultez l'historique des versions du jeu de données open data sur Github."
 
     return diff_output
